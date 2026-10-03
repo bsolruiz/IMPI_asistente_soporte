@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IMPI</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
+  <script src="{{ url_for('static', filename='js/i18n.js') }}"></script>
+</head>
+<body>
+  <div class="login-wrap">
+    <div class="login-card">
+      <div class="brand">IMPI</div>
+      <div class="sub" data-i18n="login_sub"></div>
+
+      <div class="login-lang lang-switch" id="lang-switch"></div>
+
+      <div id="err" class="err"></div>
+
+      <div class="field">
+        <label for="email" data-i18n="login_email"></label>
+        <input id="email" type="email" placeholder="tucorreo@empresa.com" autocomplete="username">
+      </div>
+      <div class="field">
+        <label for="password" data-i18n="login_password"></label>
+        <input id="password" type="password" placeholder="••••••••" autocomplete="current-password">
+      </div>
+      <button class="btn" id="btn-login" data-i18n="login_btn"></button>
+    </div>
+  </div>
+
+  <script>
+    // Selector de idioma
+    function pintarSelector() {
+      const cont = document.getElementById('lang-switch');
+      cont.innerHTML = '';
+      IDIOMAS_DISPONIBLES.forEach(function (i) {
+        const b = document.createElement('button');
+        b.textContent = i.label;
+        if (i.code === getLang()) b.classList.add('active');
+        b.addEventListener('click', function () { setLang(i.code); pintarSelector(); });
+        cont.appendChild(b);
+      });
+    }
+    document.addEventListener('DOMContentLoaded', pintarSelector);
+
+    const errBox = document.getElementById('err');
+    function showErr(msg) { errBox.textContent = msg; errBox.classList.add('show'); }
+
+    async function login() {
+      errBox.classList.remove('show');
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+      if (!email || !password) { showErr(t('err_campos')); return; }
+
+      try {
+        const res = await fetch('/api/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password }),
+        });
+        const data = await res.json();
+        if (!res.ok) { showErr(data.error || t('err_login')); return; }
+
+        localStorage.setItem('impi_token', data.token);
+        localStorage.setItem('impi_rol', data.rol);
+        localStorage.setItem('impi_nombre', data.nombre);
+        localStorage.setItem('impi_debe_cambiar', data.debe_cambiar ? '1' : '');
+        if (data.rol === 'admin') {
+          window.location.href = '/admin';
+        } else if (data.debe_cambiar) {
+          window.location.href = '/cambiar-password';
+        } else {
+          window.location.href = '/chat';
+        }
+      } catch (e) {
+        showErr(t('err_conn'));
+      }
+    }
+
+    document.getElementById('btn-login').addEventListener('click', login);
+    document.getElementById('password').addEventListener('keydown', e => {
+      if (e.key === 'Enter') login();
+    });
+  </script>
+</body>
+</html>
