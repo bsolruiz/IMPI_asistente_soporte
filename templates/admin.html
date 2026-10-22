@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IMPI - Admin</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
+  <script src="{{ url_for('static', filename='js/i18n.js') }}"></script>
+</head>
+<body>
+  <div class="topbar">
+    <span class="app-icon"><i class="ti ti-calculator"></i></span>
+    <span class="brand-block">
+      <span class="brand">IMPI Admin</span>
+      <span class="brand-sub" data-i18n="panel_admin"></span>
+    </span>
+    <span class="spacer"></span>
+    <span class="lang-switch" id="lang-switch"></span>
+    <span class="user-name" id="admin-name"></span>
+    <span class="badge badge-admin" data-i18n="badge_admin"></span>
+    <button class="btn-ghost" id="logout"><i class="ti ti-logout"></i> <span data-i18n="salir"></span></button>
+  </div>
+
+  <div class="app">
+    <aside class="sidebar">
+      <div class="side-label" data-i18n="menu_label"></div>
+      <div class="nav-item active" id="nav-clientes"><i class="ti ti-users"></i> <span data-i18n="nav_clientes"></span></div>
+      <div class="side-stats" id="side-stats"></div>
+    </aside>
+
+    <main class="main">
+      <!-- LISTA DE CLIENTES -->
+      <section id="view-list">
+        <div class="section-head">
+          <h2 data-i18n="clientes_titulo"></h2>
+          <button class="btn-soft" id="btn-nuevo"><i class="ti ti-plus"></i> <span data-i18n="nuevo_cliente"></span></button>
+        </div>
+        <div class="grid" id="clientes-grid"></div>
+      </section>
+
+      <!-- DETALLE CLIENTE -->
+      <section id="view-detail" style="display:none;">
+        <div class="breadcrumb"><a id="bc-back" data-i18n="nav_clientes"></a> / <span id="bc-name"></span></div>
+        <div class="section-head">
+          <h2 id="detail-name"></h2>
+          <div class="detail-actions">
+            <button class="btn-soft" id="btn-editar"><i class="ti ti-edit"></i> <span data-i18n="editar"></span></button>
+            <div class="menu-wrap">
+              <button class="btn-ghost btn-kebab" id="btn-menu" aria-label="Más opciones"><i class="ti ti-dots"></i></button>
+              <div class="menu" id="acciones-menu">
+                <button class="menu-item" id="btn-toggle-activo"></button>
+                <button class="menu-item danger" id="btn-del-cliente"><i class="ti ti-trash"></i> <span data-i18n="eliminar_cliente"></span></button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel" style="display:flex; align-items:center; justify-content:space-between; padding:14px 18px; margin-bottom:16px;">
+          <div id="tokens-info"></div>
+          <button class="btn-ghost" id="btn-reset-tokens"><i class="ti ti-refresh"></i> <span data-i18n="reiniciar_contador"></span></button>
+        </div>
+
+        <div class="tabs">
+          <div class="tab active" data-tab="docs" data-i18n="tab_docs"></div>
+          <div class="tab" data-tab="hist" data-i18n="tab_hist"></div>
+        </div>
+
+        <!-- Pestana docs -->
+        <div id="tab-docs" class="panel">
+          <div id="docs-list"></div>
+          <div class="dropzone" id="dropzone">
+            <i class="ti ti-cloud-upload"></i>
+            <div class="mt16" data-i18n="dz_texto"></div>
+            <div class="muted">.md .txt .xlsx .pdf</div>
+          </div>
+          <input type="file" id="file-input" accept=".md,.txt,.xlsx,.pdf" style="display:none;">
+        </div>
+
+        <!-- Pestana historial -->
+        <div id="tab-hist" class="panel" style="display:none;">
+          <div class="section-head" style="margin-bottom:14px;">
+            <span></span>
+            <button class="btn-danger" id="btn-vaciar-hist"><i class="ti ti-trash"></i> <span data-i18n="vaciar_historial"></span></button>
+          </div>
+          <div id="hist-list"></div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Modal crear/editar cliente -->
+  <div class="modal-bg" id="modal-cliente">
+    <div class="modal">
+      <h3 id="modal-title"></h3>
+      <p class="modal-sub" id="modal-sub"></p>
+
+      <div class="seccion-label" data-i18n="seccion_info"></div>
+
+      <div class="field">
+        <label data-i18n="campo_empresa"></label>
+        <input id="m-nombre" type="text" data-i18n-ph="ph_empresa">
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <label data-i18n="campo_correo"></label>
+          <input id="m-email" type="email" data-i18n-ph="ph_correo">
+        </div>
+        <div class="field">
+          <label data-i18n="campo_pass_temp"></label>
+          <input id="m-password" type="password" placeholder="••••••••">
+          <div class="field-help" id="pw-hint"></div>
+        </div>
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <label data-i18n="limite_label"></label>
+          <input id="m-limite" type="number" min="0" step="1000">
+        </div>
+        <div class="field">
+          <label data-i18n="nivel_label"></label>
+          <select id="m-nivel">
+            <option value="bajo" data-i18n="nivel_bajo"></option>
+            <option value="medio" data-i18n="nivel_medio"></option>
+            <option value="alto" data-i18n="nivel_alto"></option>
+          </select>
+        </div>
+      </div>
+
+      <div class="info-box" id="paso-siguiente">
+        <div class="info-title" data-i18n="paso_titulo"></div>
+        <div data-i18n="paso_texto"></div>
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn-ghost" id="m-cancel" data-i18n="cancelar"></button>
+        <button class="btn" id="m-save"></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal ver conversacion -->
+  <div class="modal-bg" id="modal-conv">
+    <div class="modal wide">
+      <h3 id="conv-title"></h3>
+      <div id="conv-thread" class="messages" style="max-height:60vh;"></div>
+      <div class="modal-actions"><button class="btn-ghost" id="conv-close" data-i18n="cerrar"></button></div>
+    </div>
+  </div>
+
+  <!-- Modal de confirmacion generico -->
+  <div class="modal-bg" id="modal-confirm">
+    <div class="modal">
+      <h3 id="confirm-titulo" data-i18n="confirm_titulo"></h3>
+      <p id="confirm-texto" class="muted" style="margin-bottom:8px;"></p>
+      <div class="modal-actions">
+        <button class="btn-ghost" id="confirm-cancel" data-i18n="cancelar"></button>
+        <button class="btn-danger" id="confirm-ok" data-i18n="eliminar"></button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const token = localStorage.getItem('impi_token');
+    if (!token || localStorage.getItem('impi_rol') !== 'admin') window.location.href = '/';
+    document.getElementById('admin-name').textContent = localStorage.getItem('impi_nombre') || '';
+
+    const H = { 'Authorization': 'Bearer ' + token };
+    const HJ = { ...H, 'Content-Type': 'application/json' };
+    let clienteActual = null;      // objeto cliente en detalle
+    let modoModal = 'crear';       // 'crear' | 'editar'
+
+    // ---------- Selector de idioma ----------
+    function pintarSelector() {
+      const cont = document.getElementById('lang-switch');
+      cont.innerHTML = '';
+      IDIOMAS_DISPONIBLES.forEach(function (i) {
+        const b = document.createElement('button');
+        b.textContent = i.label;
+        if (i.code === getLang()) b.classList.add('active');
+        b.addEventListener('click', function () { setLang(i.code); pintarSelector(); });
+        cont.appendChild(b);
+      });
+    }
+    document.addEventListener('DOMContentLoaded', pintarSelector);
+    // Al cambiar idioma, refrescar el contenido dinamico
+    document.addEventListener('idioma-cambiado', function () {
+      if (clienteActual) { actualizarBotonActivo(); renderTokensInfo(); cargarDocs(); cargarHistorial(); }
+      else cargarClientes();
+    });
+
+    function logout() { localStorage.clear(); window.location.href = '/'; }
+    document.getElementById('logout').addEventListener('click', logout);
+
+    async function api(url, opts = {}) {
+      const res = await fetch(url, opts);
+      if (res.status === 401) { logout(); return null; }
+      return res;
+    }
+
+    // ---------- Confirmacion propia (reemplaza el confirm() del navegador) ----------
+    const modalConfirm = document.getElementById('modal-confirm');
+    function confirmar(texto) {
+      return new Promise(function (resolve) {
+        document.getElementById('confirm-texto').textContent = texto;
+        modalConfirm.classList.add('show');
+        const ok = document.getElementById('confirm-ok');
+        const cancel = document.getElementById('confirm-cancel');
+        function cerrar(val) {
+          modalConfirm.classList.remove('show');
+          ok.removeEventListener('click', onOk);
+          cancel.removeEventListener('click', onCancel);
+          resolve(val);
+        }
+        function onOk() { cerrar(true); }
+        function onCancel() { cerrar(false); }
+        ok.addEventListener('click', onOk);
+        cancel.addEventListener('click', onCancel);
+      });
+    }
+
+    // Volver a la lista desde el menu lateral "Clientes"
+    document.getElementById('nav-clientes').addEventListener('click', function () {
+      if (clienteActual) volverLista();
+    });
+
+    // Eliminar cliente
+    document.getElementById('btn-del-cliente').addEventListener('click', async () => {
+      if (!(await confirmar(t('confirm_del_cliente', { x: clienteActual.nombre })))) return;
+      const res = await api(`/api/admin/clientes/${clienteActual.id}`, { method: 'DELETE', headers: H });
+      if (res && res.ok) volverLista();
+    });
+
+    // Vaciar todo el historial del cliente
+    document.getElementById('btn-vaciar-hist').addEventListener('click', async () => {
+      if (!(await confirmar(t('confirm_vaciar', { x: clienteActual.nombre })))) return;
+      const res = await api(`/api/admin/clientes/${clienteActual.id}/historial`, { method: 'DELETE', headers: H });
+      if (res && res.ok) cargarHistorial();
+    });
+
+    // ---------- Lista de clientes ----------
+    async function cargarClientes() {
+      const res = await api('/api/admin/clientes', { headers: H });
+      if (!res) return;
+      const clientes = await res.json();
+      const grid = document.getElementById('clientes-grid');
+      grid.innerHTML = '';
+      if (clientes.length === 0) {
+        grid.innerHTML = '<p class="muted">' + t('sin_clientes') + '</p>';
+      }
+      clientes.forEach(c => {
+        const av = avatarColor(c);
+        const basesTxt = c.bases === 1 ? t('base_calc') : t('bases_calc');
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.innerHTML = `
+          <div class="card-top">
+            <span class="avatar" style="background:${av.bg};color:${av.fg}">${inicial(c.nombre)}</span>
+            <span class="card-name">
+              <h3>${escapeHtml(c.nombre)}</h3>
+              <div class="sub">${c.bases} ${basesTxt}</div>
+            </span>
+            <span class="dot ${c.activo ? 'on' : 'off'}"></span>
+          </div>
+          <div class="card-div"></div>
+          <div class="card-foot">
+            <div class="stats">
+              <div class="stat"><b>${c.docs}</b> ${t('stat_docs')}</div>
+              <div class="stat"><b>${c.consultas}</b> ${t('stat_consultas')}</div>
+            </div>
+            <span class="ver-detalle">${t('ver_detalle')} &rarr;</span>
+          </div>
+          ${tokenUsoHTML(c)}`;
+        card.addEventListener('click', () => abrirDetalle(c));
+        grid.appendChild(card);
+      });
+      pintarSideStats(clientes);
+    }
+
+    // Stats del menu lateral (clientes activos / total consultas)
+    function pintarSideStats(clientes) {
+      const activos = clientes.filter(c => c.activo).length;
+      const consultas = clientes.reduce((s, c) => s + (c.consultas || 0), 0);
+      document.getElementById('side-stats').innerHTML = `
+        <div class="side-stat"><div class="lbl">${t('clientes_activos')}</div><div class="val">${activos}</div></div>
+        <div class="side-stat"><div class="lbl">${t('total_consultas')}</div><div class="val">${fmtNum(consultas)}</div></div>`;
+    }
+
+    // Avatar: inicial + color suave estable por cliente
+    const AVATARS = [
+      { bg: '#e8eefb', fg: '#2f5aa8' },
+      { bg: '#efeafe', fg: '#6b4ea8' },
+      { bg: '#e7f4ec', fg: '#2e7d4f' },
+      { bg: '#fdeee6', fg: '#b5652f' },
+    ];
+    function avatarColor(c) { return AVATARS[(c.id || 0) % AVATARS.length]; }
+    function inicial(nombre) { return (nombre || '?').trim().charAt(0).toUpperCase(); }
+
+    // ---------- Detalle cliente ----------
+    function abrirDetalle(c) {
+      clienteActual = c;
+      document.getElementById('view-list').style.display = 'none';
+      document.getElementById('view-detail').style.display = 'block';
+      document.getElementById('detail-name').textContent = c.nombre;
+      document.getElementById('bc-name').textContent = c.nombre;
+      actualizarBotonActivo();
+      renderTokensInfo();
+      cambiarTab('docs');
+      cargarDocs();
+      cargarHistorial();
+    }
+
+    // Reiniciar el contador de tokens del cliente
+    document.getElementById('btn-reset-tokens').addEventListener('click', async () => {
+      if (!(await confirmar(t('confirm_reset', { x: clienteActual.nombre })))) return;
+      const res = await api(`/api/admin/clientes/${clienteActual.id}/reset-tokens`,
+        { method: 'POST', headers: H });
+      if (res && res.ok) { clienteActual.tokens_usados = 0; renderTokensInfo(); }
+    });
+
+    function actualizarBotonActivo() {
+      const btn = document.getElementById('btn-toggle-activo');
+      const icono = clienteActual.activo ? 'ban' : 'circle-check';
+      btn.innerHTML = `<i class="ti ti-${icono}"></i> <span>${clienteActual.activo ? t('desactivar') : t('activar')}</span>`;
+    }
+
+    // Menu "..." de acciones del detalle
+    const accionesMenu = document.getElementById('acciones-menu');
+    document.getElementById('btn-menu').addEventListener('click', (e) => {
+      e.stopPropagation();
+      accionesMenu.classList.toggle('show');
+    });
+    document.addEventListener('click', () => accionesMenu.classList.remove('show'));
+
+    document.getElementById('bc-back').addEventListener('click', volverLista);
+    function volverLista() {
+      clienteActual = null;
+      document.getElementById('view-detail').style.display = 'none';
+      document.getElementById('view-list').style.display = 'block';
+      cargarClientes();
+    }
+
+    document.querySelectorAll('.tab').forEach(t =>
+      t.addEventListener('click', () => cambiarTab(t.dataset.tab)));
+    function cambiarTab(name) {
+      document.querySelectorAll('.tab').forEach(t =>
+        t.classList.toggle('active', t.dataset.tab === name));
+      document.getElementById('tab-docs').style.display = name === 'docs' ? 'block' : 'none';
+      document.getElementById('tab-hist').style.display = name === 'hist' ? 'block' : 'none';
+    }
+
+    // ---------- Docs ----------
+    async function cargarDocs() {
+      const res = await api(`/api/admin/clientes/${clienteActual.id}/docs`, { headers: H });
+      if (!res) return;
+      const docs = await res.json();
+      const cont = document.getElementById('docs-list');
+      cont.innerHTML = '';
+      if (docs.length === 0) cont.innerHTML = '<p class="muted">' + t('sin_archivos') + '</p>';
+      docs.forEach(d => {
+        const row = document.createElement('div');
+        row.className = 'file-row';
+        row.innerHTML = `
+          <i class="ti ti-file-text" style="color:var(--azul)"></i>
+          <span class="file-name">${escapeHtml(d.nombre)}</span>
+          <span class="file-size">${fmtSize(d.tamano)}</span>
+          <button class="btn-danger">${t('eliminar')}</button>`;
+        row.querySelector('button').addEventListener('click', () => eliminarDoc(d.nombre));
+        cont.appendChild(row);
+      });
+    }
+
+    async function eliminarDoc(nombre) {
+      if (!(await confirmar(t('confirm_eliminar', { x: nombre })))) return;
+      const res = await api(`/api/admin/clientes/${clienteActual.id}/docs/${encodeURIComponent(nombre)}`,
+        { method: 'DELETE', headers: H });
+      if (res && res.ok) cargarDocs();
+    }
+
+    const dz = document.getElementById('dropzone');
+    const fileInput = document.getElementById('file-input');
+    dz.addEventListener('click', () => fileInput.click());
+    dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag'); });
+    dz.addEventListener('dragleave', () => dz.classList.remove('drag'));
+    dz.addEventListener('drop', e => {
+      e.preventDefault(); dz.classList.remove('drag');
+      if (e.dataTransfer.files.length) subirArchivo(e.dataTransfer.files[0]);
+    });
+    fileInput.addEventListener('change', () => {
+      if (fileInput.files.length) subirArchivo(fileInput.files[0]);
+    });
+
+    async function subirArchivo(file) {
+      const fd = new FormData();
+      fd.append('archivo', file);
+      const res = await api(`/api/admin/clientes/${clienteActual.id}/docs`,
+        { method: 'POST', headers: H, body: fd });
+      if (!res) return;
+      const data = await res.json();
+      if (!res.ok) { alert(data.error || t('error_subir')); return; }
+      fileInput.value = '';
+      cargarDocs();
+    }
+
+    // ---------- Historial ----------
+    async function cargarHistorial() {
+      const res = await api(`/api/admin/clientes/${clienteActual.id}/historial`, { headers: H });
+      if (!res) return;
+      const convs = await res.json();
+      const cont = document.getElementById('hist-list');
+      cont.innerHTML = '';
+      if (convs.length === 0) cont.innerHTML = '<p class="muted">' + t('sin_convs') + '</p>';
+      convs.forEach(c => {
+        const row = document.createElement('div');
+        row.className = 'conv-row';
+        row.innerHTML = `
+          <i class="ti ti-message-2" style="color:var(--azul)"></i>
+          <span class="conv-title">${escapeHtml(c.titulo)}</span>
+          <span class="conv-meta">${c.mensajes} ${t('msgs')} · ${fmtFecha(c.fecha)}</span>
+          <button class="btn-ghost btn-ver">${t('ver')}</button>
+          <button class="btn-danger btn-del-conv"><i class="ti ti-trash"></i></button>`;
+        row.querySelector('.btn-ver').addEventListener('click', () => verConversacion(c.id));
+        row.querySelector('.btn-del-conv').addEventListener('click', async () => {
+          if (!(await confirmar(t('confirm_del_conv')))) return;
+          const r = await api(`/api/admin/conversacion/${c.id}`, { method: 'DELETE', headers: H });
+          if (r && r.ok) cargarHistorial();
+        });
+        cont.appendChild(row);
+      });
+    }
+
+    async function verConversacion(id) {
+      const res = await api(`/api/admin/conversacion/${id}`, { headers: H });
+      if (!res) return;
+      const data = await res.json();
+      document.getElementById('conv-title').textContent = data.titulo;
+      const thread = document.getElementById('conv-thread');
+      thread.innerHTML = '';
+      data.mensajes.forEach(m => thread.appendChild(burbuja(m.rol, m.contenido)));
+      document.getElementById('modal-conv').classList.add('show');
+    }
+    document.getElementById('conv-close').addEventListener('click', () =>
+      document.getElementById('modal-conv').classList.remove('show'));
+
+    // ---------- Editar / activar ----------
+    document.getElementById('btn-toggle-activo').addEventListener('click', async () => {
+      const nuevo = !clienteActual.activo;
+      const res = await api(`/api/admin/clientes/${clienteActual.id}`,
+        { method: 'PUT', headers: HJ, body: JSON.stringify({ activo: nuevo }) });
+      if (res && res.ok) { clienteActual.activo = nuevo; actualizarBotonActivo(); }
+    });
+
+    // ---------- Modal crear/editar ----------
+    const modal = document.getElementById('modal-cliente');
+    document.getElementById('btn-nuevo').addEventListener('click', () => abrirModal('crear'));
+    document.getElementById('btn-editar').addEventListener('click', () => abrirModal('editar'));
+    document.getElementById('m-cancel').addEventListener('click', () => modal.classList.remove('show'));
+
+    function abrirModal(modo) {
+      modoModal = modo;
+      document.getElementById('modal-title').textContent =
+        modo === 'crear' ? t('modal_nuevo') : t('modal_editar');
+      document.getElementById('modal-sub').textContent =
+        modo === 'crear' ? t('modal_sub_crear') : t('modal_sub_editar');
+      document.getElementById('pw-hint').textContent =
+        modo === 'crear' ? t('ayuda_pass_crear') : t('pw_hint');
+      // El recuadro "Paso siguiente" solo tiene sentido al crear
+      document.getElementById('paso-siguiente').style.display = modo === 'crear' ? 'block' : 'none';
+      document.getElementById('m-save').textContent =
+        modo === 'crear' ? t('crear_cliente_btn') : t('guardar');
+      if (modo === 'editar') {
+        document.getElementById('m-nombre').value = clienteActual.nombre;
+        document.getElementById('m-email').value = clienteActual.email;
+        document.getElementById('m-limite').value = clienteActual.limite_tokens ?? 100000;
+        document.getElementById('m-nivel').value = clienteActual.nivel_respuesta || 'medio';
+      } else {
+        document.getElementById('m-nombre').value = '';
+        document.getElementById('m-email').value = '';
+        document.getElementById('m-limite').value = 100000;
+        document.getElementById('m-nivel').value = 'medio';
+      }
+      document.getElementById('m-password').value = '';
+      modal.classList.add('show');
+    }
+
+    document.getElementById('m-save').addEventListener('click', async () => {
+      const body = {
+        nombre: document.getElementById('m-nombre').value.trim(),
+        email: document.getElementById('m-email').value.trim(),
+        password: document.getElementById('m-password').value,
+        limite_tokens: parseInt(document.getElementById('m-limite').value || '0', 10),
+        nivel_respuesta: document.getElementById('m-nivel').value,
+      };
+      let res;
+      if (modoModal === 'crear') {
+        res = await api('/api/admin/clientes',
+          { method: 'POST', headers: HJ, body: JSON.stringify(body) });
+      } else {
+        res = await api(`/api/admin/clientes/${clienteActual.id}`,
+          { method: 'PUT', headers: HJ, body: JSON.stringify(body) });
+      }
+      if (!res) return;
+      const data = await res.json();
+      if (!res.ok) { alert(data.error || t('error_generic')); return; }
+      modal.classList.remove('show');
+      if (modoModal === 'crear') {
+        cargarClientes();
+      } else {
+        clienteActual.nombre = body.nombre;
+        clienteActual.email = body.email;
+        clienteActual.limite_tokens = body.limite_tokens;
+        clienteActual.nivel_respuesta = body.nivel_respuesta;
+        document.getElementById('detail-name').textContent = body.nombre;
+        document.getElementById('bc-name').textContent = body.nombre;
+        renderTokensInfo();
+      }
+    });
+
+    // ---------- Utils ----------
+    function burbuja(rol, contenido) {
+      const wrap = document.createElement('div');
+      wrap.className = 'msg-wrap ' + (rol === 'user' ? 'user' : '');
+      const b = document.createElement('div');
+      b.className = 'bubble ' + (rol === 'user' ? 'user' : 'bot');
+      b.textContent = contenido;
+      wrap.appendChild(b);
+      return wrap;
+    }
+    function fmtSize(bytes) {
+      if (bytes < 1024) return bytes + ' B';
+      if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+      return (bytes / 1024 / 1024).toFixed(1) + ' MB';
+    }
+    function fmtFecha(iso) {
+      const d = new Date(iso);
+      return d.toLocaleDateString(getLang(), { day: '2-digit', month: 'short', year: 'numeric' });
+    }
+    function escapeHtml(s) {
+      return (s || '').replace(/[&<>"']/g, m =>
+        ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
+    }
+    function fmtNum(n) {
+      return (n || 0).toLocaleString(getLang());
+    }
+    // Linea de consumo de tokens para la tarjeta (con barra y color rojo si se paso)
+    function tokenUsoHTML(c) {
+      const sinLimite = !c.limite_tokens || c.limite_tokens <= 0;
+      const over = !sinLimite && c.tokens_usados >= c.limite_tokens;
+      const pct = sinLimite ? 0 : Math.min(100, Math.round((c.tokens_usados / c.limite_tokens) * 100));
+      const meta = sinLimite ? t('sin_limite') : fmtNum(c.limite_tokens);
+      const barra = sinLimite ? '' :
+        `<div class="token-bar ${over ? 'over' : ''}"><span style="width:${pct}%"></span></div>`;
+      return `<div class="token-uso ${over ? 'over' : ''}">${fmtNum(c.tokens_usados)} / ${meta} ${t('stat_tokens')}</div>${barra}`;
+    }
+    function renderTokensInfo() {
+      document.getElementById('tokens-info').innerHTML =
+        `<div class="muted" style="font-weight:600;margin-bottom:2px;">${t('tokens_uso')}</div>${tokenUsoHTML(clienteActual)}`;
+    }
+
+    cargarClientes();
+  </script>
+</body>
+</html>
