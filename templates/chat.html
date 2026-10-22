@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IMPI - Chat</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
+  <script src="{{ url_for('static', filename='js/i18n.js') }}"></script>
+</head>
+<body>
+  <div class="topbar">
+    <span class="app-icon"><i class="ti ti-calculator"></i></span>
+    <span class="brand-block">
+      <span class="brand" data-i18n="chat_titulo"></span>
+      <span class="brand-sub" data-i18n="chat_sub"></span>
+    </span>
+    <span class="spacer"></span>
+    <span class="lang-switch" id="lang-switch"></span>
+    <span class="user-name" id="cliente-name"></span>
+    <span class="badge badge-cliente" data-i18n="badge_cliente"></span>
+    <button class="btn-ghost" id="logout"><i class="ti ti-logout"></i> <span data-i18n="salir"></span></button>
+  </div>
+
+  <div class="chat-layout">
+    <aside class="chat-side">
+      <div class="side-head">
+        <div class="side-label"><i class="ti ti-clock"></i> <span data-i18n="conversaciones"></span></div>
+        <button class="btn-nueva" id="btn-nueva"><i class="ti ti-plus"></i> <span data-i18n="nueva_consulta"></span></button>
+      </div>
+      <div class="conv-list" id="conv-list"></div>
+    </aside>
+
+    <main class="chat-main">
+      <div class="messages" id="messages"></div>
+
+      <div class="typing" id="typing" data-i18n="typing" style="display:none;"></div>
+
+      <div class="composer">
+        <textarea id="input" rows="1" data-i18n-ph="input_ph"></textarea>
+        <button class="btn-send" id="btn-send"><i class="ti ti-arrow-up"></i></button>
+      </div>
+      <div class="chat-foot" data-i18n="powered_by"></div>
+    </main>
+  </div>
+
+  <script>
+    const token = localStorage.getItem('impi_token');
+    if (!token || localStorage.getItem('impi_rol') !== 'cliente') window.location.href = '/';
+    if (localStorage.getItem('impi_debe_cambiar') === '1') window.location.href = '/cambiar-password';
+    document.getElementById('cliente-name').textContent = localStorage.getItem('impi_nombre') || '';
+
+    const H = { 'Authorization': 'Bearer ' + token };
+    const HJ = { ...H, 'Content-Type': 'application/json' };
+    let convActual = null;
+
+    // ---------- Selector de idioma ----------
+    function pintarSelector() {
+      const cont = document.getElementById('lang-switch');
+      cont.innerHTML = '';
+      IDIOMAS_DISPONIBLES.forEach(function (i) {
+        const b = document.createElement('button');
+        b.textContent = i.label;
+        if (i.code === getLang()) b.classList.add('active');
+        b.addEventListener('click', function () { setLang(i.code); pintarSelector(); });
+        cont.appendChild(b);
+      });
+    }
+    document.addEventListener('DOMContentLoaded', function () { pintarSelector(); mostrarVacioSiVacio(); });
+    // Al cambiar idioma, si estamos en el estado vacio lo repintamos traducido
+    document.addEventListener('idioma-cambiado', function () {
+      if (!convActual) mostrarVacio();
+    });
+
+    function logout() { localStorage.clear(); window.location.href = '/'; }
+    document.getElementById('logout').addEventListener('click', logout);
+
+    async function api(url, opts = {}) {
+      const res = await fetch(url, opts);
+      if (res.status === 401) { logout(); return null; }
+      return res;
+    }
+
+    // ---------- Historial lateral ----------
+    async function cargarHistorial() {
+      const res = await api('/api/chat/historial', { headers: H });
+      if (!res) return;
+      const convs = await res.json();
+      const cont = document.getElementById('conv-list');
+      cont.innerHTML = '';
+      convs.forEach(c => {
+        const item = document.createElement('div');
+        item.className = 'conv-item' + (c.id === convActual ? ' active' : '');
+        item.title = c.titulo;
+        item.innerHTML =
+          `<div class="conv-t">${escapeHtml(c.titulo)}</div><div class="conv-d">${fmtFechaHora(c.fecha)}</div>`;
+        item.addEventListener('click', () => abrirConversacion(c.id));
+        cont.appendChild(item);
+      });
+    }
+
+    async function abrirConversacion(id) {
+      convActual = id;
+      const res = await api(`/api/chat/mensajes/${id}`, { headers: H });
+      if (!res) return;
+      const msgs = await res.json();
+      pintarMensajes(msgs);
+      cargarHistorial();
+    }
+
+    // ---------- Render ----------
+    const messagesEl = document.getElementById('messages');
+    function mostrarVacioSiVacio() { if (!convActual) mostrarVacio(); }
+    function pintarMensajes(msgs) {
+      messagesEl.innerHTML = '';
+      if (!msgs || msgs.length === 0) { mostrarVacio(); return; }
+      msgs.forEach(m => messagesEl.appendChild(burbuja(m.rol, m.contenido)));
+      scrollAbajo();
+    }
+    function mostrarVacio() {
+      const chips = [t('chip1'), t('chip2'), t('chip3'), t('chip4')]
+        .map(txt => `<div class="chip">${txt}</div>`).join('');
+      messagesEl.innerHTML =
+        `<div class="empty-state" id="empty">
+           <div class="empty-icon"><i class="ti ti-message-2-question"></i></div>
+           <h1>${t('empty_titulo')}</h1>
+           <div class="empty-sub">${t('empty_sub')}</div>
+           <div class="chips">${chips}</div>
+         </div>`;
+      enlazarChips();
+    }
+    function burbuja(rol, contenido) {
+      const wrap = document.createElement('div');
+      wrap.className = 'msg-wrap ' + (rol === 'user' ? 'user' : '');
+      const b = document.createElement('div');
+      b.className = 'bubble ' + (rol === 'user' ? 'user' : 'bot');
+      b.textContent = contenido;
+      wrap.appendChild(b);
+      return wrap;
+    }
+    function scrollAbajo() { messagesEl.scrollTop = messagesEl.scrollHeight; }
+
+    function escapeHtml(s) {
+      return (s || '').replace(/[&<>"']/g, m =>
+        ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
+    }
+    function fmtFechaHora(iso) {
+      const d = new Date(iso);
+      const hoy = new Date();
+      const ayer = new Date(); ayer.setDate(hoy.getDate() - 1);
+      const hora = d.toLocaleTimeString(getLang(), { hour: '2-digit', minute: '2-digit' });
+      if (d.toDateString() === hoy.toDateString()) return t('hoy') + ', ' + hora;
+      if (d.toDateString() === ayer.toDateString()) return t('ayer') + ', ' + hora;
+      return d.toLocaleDateString(getLang(), { day: '2-digit', month: 'short' });
+    }
+
+    function enlazarChips() {
+      document.querySelectorAll('.chip').forEach(chip =>
+        chip.addEventListener('click', () => enviar(chip.textContent.trim())));
+    }
+
+    // ---------- Envio ----------
+    const input = document.getElementById('input');
+    input.addEventListener('input', () => {
+      input.style.height = 'auto';
+      input.style.height = Math.min(input.scrollHeight, 140) + 'px';
+    });
+    input.addEventListener('keydown', e => {
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); enviarDesdeInput(); }
+    });
+    document.getElementById('btn-send').addEventListener('click', enviarDesdeInput);
+    document.getElementById('btn-nueva').addEventListener('click', () => {
+      convActual = null;
+      mostrarVacio();
+      cargarHistorial();
+    });
+
+    function enviarDesdeInput() {
+      const texto = input.value.trim();
+      if (!texto) return;
+      input.value = '';
+      input.style.height = 'auto';
+      enviar(texto);
+    }
+
+    async function enviar(texto) {
+      // Crear conversacion si no hay una activa
+      if (!convActual) {
+        const r = await api('/api/chat/nueva', { method: 'POST', headers: H });
+        if (!r) return;
+        const d = await r.json();
+        convActual = d.conversacion_id;
+        messagesEl.innerHTML = '';
+      } else if (document.getElementById('empty')) {
+        messagesEl.innerHTML = '';
+      }
+
+      messagesEl.appendChild(burbuja('user', texto));
+      scrollAbajo();
+
+      const typing = document.getElementById('typing');
+      typing.style.display = 'block';
+      document.getElementById('btn-send').disabled = true;
+
+      try {
+        const res = await api('/api/chat/mensaje', {
+          method: 'POST', headers: HJ,
+          body: JSON.stringify({ conversacion_id: convActual, pregunta: texto, idioma: getLang() }),
+        });
+        if (!res) return;
+        const data = await res.json();
+        if (!res.ok) {
+          const msg = data.error === 'limite_tokens' ? t('limite_alcanzado')
+                    : (data.error || t('err_responder'));
+          messagesEl.appendChild(burbuja('assistant', msg));
+        } else {
+          messagesEl.appendChild(burbuja('assistant', data.respuesta));
+        }
+        scrollAbajo();
+        cargarHistorial();
+      } catch (e) {
+        messagesEl.appendChild(burbuja('assistant', t('err_conn')));
+      } finally {
+        typing.style.display = 'none';
+        document.getElementById('btn-send').disabled = false;
+      }
+    }
+
+    cargarHistorial();
+  </script>
+</body>
+</html>
