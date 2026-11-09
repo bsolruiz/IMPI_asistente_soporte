@@ -1,14 +1,3 @@
-"""
-IMPI - Asistente de soporte con IA para plataforma de calculo de bonos y comisiones.
-Backend Flask + SQLite + JWT.
-
-IMPORTANTE SOBRE LA IA:
-  La llamada real a Claude esta controlada por la variable AI_ENABLED del .env.
-  Por defecto AI_ENABLED=false  ->  el chat responde con un mensaje simulado y
-  NO consume tokens de la API. Cuando quieras activarla, pon AI_ENABLED=true y
-  coloca tu ANTHROPIC_API_KEY. Asi puedes probar toda la app sin gastar creditos.
-"""
-
 import os
 import shutil
 from datetime import datetime, timedelta
@@ -29,6 +18,7 @@ load_dotenv()
 # ---------------------------------------------------------------------------
 # Configuracion
 # ---------------------------------------------------------------------------
+
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 DOCS_DIR = os.path.join(BASE_DIR, "docs")
 os.makedirs(DOCS_DIR, exist_ok=True)
