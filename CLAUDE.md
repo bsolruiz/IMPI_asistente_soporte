@@ -16,6 +16,11 @@ Flask + SQLite (SQLAlchemy), JWT (flask-jwt-extended) + Werkzeug, Claude Haiku
 - docs/<id>/: documentos por cliente (contexto). instance/impi.db: base de datos (se crea sola).
 
 ## Ejecutar
+si no se tiene un ambiente, con el venv 
+  python -m venv venv
+  Activarlo: 
+  CMD o PowerShell: venv\Scripts\activate
+Git Bash: source venv/Scripts/activate
 pip install -r requirements.txt, luego copiar .env.example como .env, luego python app.py
 (http://localhost:5000). Admin por defecto: admin@impi.com / admin123.
 IA apagada por defecto (AI_ENABLED=false): responde simulado, sin gastar tokens.
